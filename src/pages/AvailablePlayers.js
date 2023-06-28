@@ -55,6 +55,7 @@ const AvailablePlayers = ({userId}) => {
 
   const [players, setPlayers] = useState([]);
   const [lastPlayer, setLastPlayer] = useState('');
+  console.log(players);
 
   const availablePlayersRef = collection(db, "AvailablePlayers");
   const availablePlayers = query(availablePlayersRef, limit(3));
