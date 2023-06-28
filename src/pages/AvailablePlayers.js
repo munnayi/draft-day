@@ -1,7 +1,7 @@
 import React from "react";
 
 import {db} from "../core/firebase-config";
-import {collection, getDocs, query, where, orderBy, limit, startAfter, doc, setDoc, deleteDoc} from "firebase/firestore";
+import {collection, getDocs, query, limit, startAfter, doc, setDoc, deleteDoc} from "firebase/firestore";
 import { useEffect, useState } from "react";
 
 import PlayerCard from "../components/PlayerCard";
@@ -46,7 +46,7 @@ const AvailablePlayers = ({userId}) => {
 
     await deleteDoc(doc(db, "AvailablePlayers", `${player.id}`));
 
-    getPlayers();
+    // getPlayers();
 
     closeModal();
 
@@ -54,85 +54,32 @@ const AvailablePlayers = ({userId}) => {
 
 
   const [players, setPlayers] = useState([]);
-  const [selectedOption, setSelectedOption] = useState('');
-  const [selectedPositionOption, setSelectedPositionOption] = useState('');
-  const [selectedSortOption, setSelectedSortOption] = useState("Team");
   const [lastPlayer, setLastPlayer] = useState('');
 
-  const handleDropdownChange = (event) => {
-    setSelectedOption(event.target.value);
-  };
-
-  const handlePositionDropdownChange = (event) => {
-    setSelectedPositionOption(event.target.value);
-  };
-
-  const handleSortDropdownChange = (event) => {
-    setSelectedSortOption(event.target.value);
-  };
-
   const availablePlayersRef = collection(db, "AvailablePlayers");
-  const sortBy = query(availablePlayersRef, orderBy(`${selectedSortOption}`), limit(3));
-  const sortByPoints = query(availablePlayersRef, orderBy("Points", "desc"), limit(3));
-  const playersByTeam = query(availablePlayersRef, where("Team", "==", `${selectedOption}`), limit(3));
-  const playersByPosition = query(availablePlayersRef, where("Position", "==", `${selectedPositionOption}`), limit(3));
+  const availablePlayers = query(availablePlayersRef, limit(3));
+
 
   const getPlayers = async () => {
-    const data = await getDocs(sortBy);
-    const filterData = await getDocs(playersByTeam);
-    const filterPositionData = await getDocs(playersByPosition);
-    const filterPointsData = await getDocs(sortByPoints);
-
-    if (selectedOption) {
-      setPlayers(filterData.docs.map((doc) => ({...doc.data(), id: doc.id})));
-      setLastPlayer(filterData.docs[filterData.docs.length-1]);
-    } else if (selectedPositionOption) {
-      setPlayers(filterPositionData.docs.map((doc) => ({...doc.data(), id: doc.id})));
-      setLastPlayer(filterPositionData.docs[filterPositionData.docs.length-1]);
-    } else if (selectedSortOption === "Points") {
-      setPlayers(filterPointsData.docs.map((doc) => ({...doc.data(), id: doc.id})));
-      setLastPlayer(filterPointsData.docs[filterPointsData.docs.length-1]);
-    } else {
+    const data = await getDocs(availablePlayers);
       setPlayers(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
       setLastPlayer(data.docs[data.docs.length-1]);
-    }
   }
 
   useEffect(()=> {
     getPlayers();
-
-  }, [selectedOption, selectedSortOption, selectedPositionOption])
+  }, [])
 
   const getMorePlayers = async () => {
 
     const availablePlayersRef = collection(db, "AvailablePlayers");
-    const sortBy = query(availablePlayersRef, orderBy(`${selectedSortOption}`), startAfter(lastPlayer), limit(3));
-    const sortByPoints = query(availablePlayersRef, orderBy("Points", "desc"), startAfter(lastPlayer), limit(3));
-    const playersByTeam = query(availablePlayersRef, where("Team", "==", `${selectedOption}`), startAfter(lastPlayer), limit(3));
-    const playersByPosition = query(availablePlayersRef, where("Position", "==", `${selectedPositionOption}`), startAfter(lastPlayer), limit(3));
+    const getNext = query(availablePlayersRef, startAfter(lastPlayer), limit(3));
 
-    const data = await getDocs(sortBy);
-    const filterData = await getDocs(playersByTeam);
-    const filterPositionData = await getDocs(playersByPosition);
-    const filterPointsData = await getDocs(sortByPoints);
+    const data = await getDocs(getNext);
 
-    if (selectedOption) {
-      const newPlayers = filterData.docs.map((doc) => ({...doc.data(), id: doc.id}))
-      setPlayers((players) => [...players, ...newPlayers]);
-      setLastPlayer(filterData.docs[filterData.docs.length-1]);
-    } else if (selectedPositionOption) {
-      const newPlayers = filterPositionData.docs.map((doc) => ({...doc.data(), id: doc.id}))
-      setPlayers((players) => [...players, ...newPlayers]);
-      setLastPlayer(filterPositionData.docs[filterPositionData.docs.length-1]);
-    } else if (selectedSortOption === "Points") {
-      const newPlayers = filterPointsData.docs.map((doc) => ({...doc.data(), id: doc.id}))
-      setPlayers((players) => [...players, ...newPlayers]);
-      setLastPlayer(filterPointsData.docs[filterPointsData.docs.length-1]);
-    } else {
-      const newPlayers = data.docs.map((doc) => ({...doc.data(), id: doc.id}))
+    const newPlayers = data.docs.map((doc) => ({...doc.data(), id: doc.id}))
       setPlayers((players) => [...players, ...newPlayers]);
       setLastPlayer(data.docs[data.docs.length-1]);
-    }
   }
 
   const handleMorePlayers = () => {
@@ -155,14 +102,14 @@ const AvailablePlayers = ({userId}) => {
               <h3 className="text-white font-bold">Filters</h3>
               <div className="p-2">
                 <h4 className="text-white font-bold text-sm pb-2">Sort By</h4>
-                <select className="p-2 min-w-full bg-white/95" value={selectedSortOption} onChange={handleSortDropdownChange}>
+                <select className="p-2 min-w-full bg-white/95">
                  <option value="Team">Sort By Team</option>
                  <option value="LastName">Sort By Name</option>
                  <option value="Points">Sort By 22/23 Points</option>
                 </select>
 
                 <h4 className="text-white font-bold text-sm pb-2 pt-4">Teams</h4>
-                <select className="p-2 min-w-full bg-white/95" value={selectedOption} onChange={handleDropdownChange}>
+                <select className="p-2 min-w-full bg-white/95">
                   <option value="">All Teams</option>
                   {teams.map((team) => {
                     return (
@@ -172,7 +119,7 @@ const AvailablePlayers = ({userId}) => {
                 </select>
 
                 <h4 className="text-white font-bold text-sm pb-2 pt-4">Positions</h4>
-                <select className="p-2 min-w-full bg-white/95" value={selectedPositionOption} onChange={handlePositionDropdownChange}>
+                <select className="p-2 min-w-full bg-white/95">
                   <option value="">All Positions</option>
                   {positions.map((position) => {
                     return (
