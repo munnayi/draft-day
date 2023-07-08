@@ -4,15 +4,17 @@ import PlayerCard from "../components/PlayerCard";
 import {db} from "../core/firebase-config";
 import { collection, getDocs, where, query } from "firebase/firestore";
 
-const Team = ({manager, userId}) => {
+const Team = ({manager}) => {
+
+  const positions = ["GK", "DEF", "MID", "ATT"];
 
   const [goalkeepers, setGoalkeepers] = useState([]);
   const [defenders, setDefenders] = useState([]);
   const [midfielders, setMidfielders] = useState([]);
   const [attackers, setAttackers] = useState([]);
 
-  const selectedPlayersRef = collection(db, "SelectedPlayers");
-  const selectedPlayers = query(selectedPlayersRef, where("Manager", "==", `${userId}`));
+  const selectedPlayersRef = collection(db, "Players");
+  const selectedPlayers = query(selectedPlayersRef, where("Manager", "==", `${manager.id}`));
   const gks = query(selectedPlayers, where("Position", "==", "GK"));
   const defs = query(selectedPlayers, where("Position", "==", "DEF"));
   const mids = query(selectedPlayers, where("Position", "==", "MID"));
@@ -48,7 +50,7 @@ const Team = ({manager, userId}) => {
         <>
           {goalkeepers.map((player) => {
           return (
-            <PlayerCard key={player.id} firstName={player.FirstName} lastName={player.LastName} image={player.Image} points={player.Points} position={player.Position} logo={player.Logo} />             
+            <PlayerCard key={player.id} firstName={player.first_name} lastName={player.web_name} image={player.code} position={positions[player.element_type-1]} logo={`../images/logos/${player.SelectedTeamLogo}`} pick={player.pick} />             
             )
           })}
         </>
@@ -67,7 +69,7 @@ const Team = ({manager, userId}) => {
         <>
           {defenders.map((player) => {
           return (
-            <PlayerCard key={player.id} firstName={player.FirstName} lastName={player.LastName} image={player.Image} points={player.Points} position={player.Position} logo={player.Logo} />             
+            <PlayerCard key={player.id} firstName={player.FirstName} lastName={player.LastName} image={player.Image} points={player.Points} position={player.Position} logo={`../images/logos/${player.SelectedTeamLogo}`} />             
             )
           })}
         </>
@@ -86,7 +88,7 @@ const Team = ({manager, userId}) => {
         <>
           {midfielders.map((player) => {
           return (
-            <PlayerCard key={player.id} firstName={player.FirstName} lastName={player.LastName} image={player.Image} points={player.Points} position={player.Position} logo={player.Logo} />             
+            <PlayerCard key={player.id} firstName={player.FirstName} lastName={player.LastName} image={player.Image} points={player.Points} position={player.Position} logo={`../images/logos/${player.SelectedTeamLogo}`} />             
             )
           })}
         </>
@@ -105,7 +107,7 @@ const Team = ({manager, userId}) => {
         <>
           {attackers.map((player) => {
           return (
-            <PlayerCard key={player.id} firstName={player.FirstName} lastName={player.LastName} image={player.Image} points={player.Points} position={player.Position} logo={player.Logo} />             
+            <PlayerCard key={player.id} firstName={player.FirstName} lastName={player.LastName} image={player.Image} points={player.Points} position={player.Position} logo={`../images/logos/${player.SelectedTeamLogo}`} />             
             )
           })}
         </>

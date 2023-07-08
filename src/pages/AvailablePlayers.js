@@ -1,8 +1,9 @@
 import React from "react";
 
 import {db} from "../core/firebase-config";
-import {collection, getDocs, query, limit, startAfter, doc, setDoc, deleteDoc} from "firebase/firestore";
+import {collection, getDocs, query, where, orderBy, limit, startAfter, doc, updateDoc} from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { useNavigate } from 'react-router-dom';
 
 import PlayerCard from "../components/PlayerCard";
 import Heading from "../components/Heading";
@@ -10,10 +11,12 @@ import Search from "../components/Search";
 import Button from "../components/Button";
 import PlayerModal from "../components/PlayerModal";
 
-const AvailablePlayers = ({userId}) => {
+const AvailablePlayers = ({manager, currentPick}) => {
 
   const [isActive, setActive] = useState("false");
   const [visibleModal, setVisibleModal] = useState(null);
+
+  const navigate = useNavigate();
 
   const handleClick = () => {
     setActive(!isActive);
@@ -27,66 +30,103 @@ const AvailablePlayers = ({userId}) => {
     setVisibleModal(null);
   };
 
+  const playersRef = collection(db, "players");
+  const availablePlayers = query(playersRef, where("selected", "==", false))
 
   const handlePlayerSelected = async (player) => {
-    console.log(`${player.id} ${player.FirstName} ${player.LastName} selected`)
+    console.log(`${player.id} ${player.first_name} ${player.second_name} selected`)
 
-    const newSelectedPlayerRef = doc(collection(db, "SelectedPlayers"));
 
-    await setDoc(newSelectedPlayerRef, {
-      FirstName: player.FirstName,
-      LastName: player.LastName,
-      Image: player.Image,
-      Logo: player.Logo,
-      Manager: userId,
-      Points: player.Points,
-      Position: player.Position,
-      Team: player.Team
+    const playerRef = doc(db, "players", player.id);
+    await updateDoc(playerRef, {
+      selected: true,
+      selectedTeamLogo: manager.TeamLogo,
+      selectedManager: currentPick,
+      selectedTeamName: manager.TeamName,
+      pick: manager.NextPick
     });
 
-    await deleteDoc(doc(db, "AvailablePlayers", `${player.id}`));
+    const managerNextPickRef = doc(db, "Managers", currentPick);
+    const picks = manager.Picks;
 
-    // getPlayers();
+    await updateDoc(managerNextPickRef, {
+      "NextPick": picks.pop(),
+      "Picks": picks
+    })
 
     closeModal();
-
+    navigate("/big-board");
+    navigate(0);
   }
 
 
   const [players, setPlayers] = useState([]);
+  const [selectedOption, setSelectedOption] = useState(0);
+  const [selectedPositionOption, setSelectedPositionOption] = useState(0);
   const [lastPlayer, setLastPlayer] = useState('');
-  console.log(players);
 
-  const availablePlayersRef = collection(db, "AvailablePlayers");
-  const availablePlayers = query(availablePlayersRef, limit(3));
+  const handleDropdownChange = (event) => {
+    setSelectedOption(parseInt(event.target.value));
+  };
+
+  const handlePositionDropdownChange = (event) => {
+    setSelectedPositionOption(parseInt(event.target.value));
+  };
+
+  const sortBy = query(availablePlayers, orderBy("team"), orderBy("element_type"), limit(3));
+  const playersByTeam = query(availablePlayers, where("team", "==", selectedOption), orderBy("element_type"), limit(3));
+  const playersByPosition = query(availablePlayers, where("element_type", "==", selectedPositionOption), orderBy("team"), limit(3));
 
 
   const getPlayers = async () => {
-    const data = await getDocs(availablePlayers);
+    const data = await getDocs(sortBy);
+    const filterData = await getDocs(playersByTeam);
+    const filterPositionData = await getDocs(playersByPosition);
+
+    if (selectedOption) {
+      setPlayers(filterData.docs.map((doc) => ({...doc.data(), id: doc.id})));
+      setLastPlayer(filterData.docs[filterData.docs.length-1]);
+    } else if (selectedPositionOption) {
+      setPlayers(filterPositionData.docs.map((doc) => ({...doc.data(), id: doc.id})));
+      setLastPlayer(filterPositionData.docs[filterPositionData.docs.length-1]);
+    } else {
       setPlayers(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
       setLastPlayer(data.docs[data.docs.length-1]);
+    }
   }
 
   useEffect(()=> {
     getPlayers();
-  }, [])
+  }, [selectedOption, selectedPositionOption])
 
   const getMorePlayers = async () => {
 
-    const availablePlayersRef = collection(db, "AvailablePlayers");
-    const getNext = query(availablePlayersRef, startAfter(lastPlayer), limit(3));
+    const sortBy = query(availablePlayers, orderBy("team"), orderBy("element_type"), startAfter(lastPlayer), limit(3));
+    const playersByTeam = query(availablePlayers, where("team", "==", selectedOption), orderBy("element_type"), startAfter(lastPlayer), limit(3));
+    const playersByPosition = query(availablePlayers, where("element_type", "==", selectedPositionOption), orderBy("team"), startAfter(lastPlayer), limit(3));
 
-    const data = await getDocs(getNext);
+    const data = await getDocs(sortBy);
+    const filterData = await getDocs(playersByTeam);
+    const filterPositionData = await getDocs(playersByPosition);
 
-    const newPlayers = data.docs.map((doc) => ({...doc.data(), id: doc.id}))
+    if (selectedOption) {
+      const newPlayers = filterData.docs.map((doc) => ({...doc.data(), id: doc.id}))
+      setPlayers((players) => [...players, ...newPlayers]);
+      setLastPlayer(filterData.docs[filterData.docs.length-1]);
+    } else if (selectedPositionOption) {
+      const newPlayers = filterPositionData.docs.map((doc) => ({...doc.data(), id: doc.id}))
+      setPlayers((players) => [...players, ...newPlayers]);
+      setLastPlayer(filterPositionData.docs[filterPositionData.docs.length-1]);
+    } else {
+      const newPlayers = data.docs.map((doc) => ({...doc.data(), id: doc.id}))
       setPlayers((players) => [...players, ...newPlayers]);
       setLastPlayer(data.docs[data.docs.length-1]);
+    }
   }
 
   const handleMorePlayers = () => {
     getMorePlayers();
   }
-
 
   const teams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Liverpool", "Luton", "Man City", "Man Utd", "Newcastle Utd", "Notts Forrest", "Sheff Utd", "Spurs", "West Ham", "Wolves"]
 
@@ -102,29 +142,22 @@ const AvailablePlayers = ({userId}) => {
             <div className={`${isActive ? "hidden" : ""} z-10 min-w-[250px] absolute mt-4 w-full bg-gradient-to-r from-gray-900 to-gray-700 p-4`}>
               <h3 className="text-white font-bold">Filters</h3>
               <div className="p-2">
-                <h4 className="text-white font-bold text-sm pb-2">Sort By</h4>
-                <select className="p-2 min-w-full bg-white/95">
-                 <option value="Team">Sort By Team</option>
-                 <option value="LastName">Sort By Name</option>
-                 <option value="Points">Sort By 22/23 Points</option>
-                </select>
-
                 <h4 className="text-white font-bold text-sm pb-2 pt-4">Teams</h4>
-                <select className="p-2 min-w-full bg-white/95">
+                <select className="p-2 min-w-full bg-white/95" value={selectedOption} onChange={handleDropdownChange}>
                   <option value="">All Teams</option>
-                  {teams.map((team) => {
+                  {teams.map((team, index) => {
                     return (
-                      <option key={team} value={team}>{team}</option>
+                      <option key={team} value={index+1}>{team}</option>
                     )
                   })}
                 </select>
 
                 <h4 className="text-white font-bold text-sm pb-2 pt-4">Positions</h4>
-                <select className="p-2 min-w-full bg-white/95">
+                <select className="p-2 min-w-full bg-white/95" value={selectedPositionOption} onChange={handlePositionDropdownChange}>
                   <option value="">All Positions</option>
-                  {positions.map((position) => {
+                  {positions.map((position, index) => {
                     return (
-                      <option key={position} value={position}>{position}</option>
+                      <option key={position} value={index+1}>{position}</option>
                     )
                   })}
                 </select>
@@ -142,12 +175,12 @@ const AvailablePlayers = ({userId}) => {
               </div>
             ) : (
               <>
-                {players.map((player) => {
+                {players.map((player) => { 
                 return (
                   <div key={player.id}>
-                    <PlayerCard key={player.id} onclick={() => handleModalClick(player.id)} firstName={player.FirstName} lastName={player.LastName} image={player.Image} points={player.Points} position={player.Position} logo={player.Logo} /> 
+                    <PlayerCard key={player.id} onclick={() => handleModalClick(player.id)} firstName={player.first_name} lastName={player.web_name} image={player.code} position={positions[player.element_type-1]} logo={player.team} /> 
                     <div className={visibleModal === player.id ? "fixed top-0 right-0 left-0 bottom-0 bg-black/50 z-40 flex items-center justify-center transition-transform scale-100" : "scale-95 hidden"}>
-                      <PlayerModal key={player.id} firstName={player.FirstName} lastName={player.LastName} image={player.Image} goBack={closeModal} handlePlayerSelected={() => handlePlayerSelected(player)} />
+                      <PlayerModal key={player.id} firstName={player.first_name} lastName={player.second_name} image={player.code} teamName={player.team} position={positions[player.element_type-1]} goBack={closeModal} handlePlayerSelected={() => handlePlayerSelected(player)} />
                     </div>    
                   </div>             
                   )

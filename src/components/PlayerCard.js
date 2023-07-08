@@ -16,21 +16,20 @@ const PlayerCard = ({firstName, lastName, image, pick, position, logo, points, t
             <div className="uppercase text-xl font-bold text-gray-700 font-body">{position}</div>
           </div>
           <div className="col-span-1 relative flex items-center justify-center border-r border-slate-300 pt-3">
-            {/* <em className="absolute top-1 left-1 text-[10px] uppercase">Team</em> */}
             <div>
-              <img className="w-[40px]" src={logo} alt={`$firstName $lastName`}  />
+              <img className="w-[40px]" src={`../images/epl/logos/${logo}.svg`} alt={`${firstName} ${lastName}`}  />
             </div>
           </div>
           <div className="col-span-1 relative flex items-center justify-center pt-3">
-            <em className="absolute top-1 left-1 text-[10px] uppercase">22/23 Pts</em>
+            <em className="absolute top-1 left-1 text-[10px] uppercase">Pick</em>
           <div className="uppercase text-xl font-bold text-gray-700 font-body">
-            {points}
+            {pick ? (`#${pick}`) : ("#")}
           </div>
           </div>
         </div>
 
         <div className="col-span-4 row-span-4 relative flex items-end justify-center z-10">
-          <img className="max-w-[200px]" src={image} alt={`$firstName $lastName`}  />
+          <img className="max-w-[200px]" src={`https://resources.premierleague.com/premierleague/photos/players/250x250/p${image}.png`} alt={`${firstName} ${lastName}`}  />
         </div>
       </div>
     </Link>
