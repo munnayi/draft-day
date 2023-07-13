@@ -6,7 +6,7 @@ const PlayerSelectedModal = ({ image, firstName, lastName, pick, teamName, logo,
         </div>
         <div className="col-span-2 flex items-center justify-end relative">
           <div className="absolute top-4 left-4 font-display text-xs text-center p-2 bg-gradient-to-r from-slate-700 to-slate-900 text-white">#{pick}</div>
-          <img src={image} alt={`${firstName} ${lastName}`} />
+          <img src={`https://resources.premierleague.com/premierleague/photos/players/250x250/p${image}.png`} alt={`${firstName} ${lastName}`} />
         </div>
         <div className="col-span-2 flex flex-col items-center justify-center">
           <div className="p-2 pb-4">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { auth } from '../core/firebase-config';
+import { auth, db } from '../core/firebase-config';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from "firebase/firestore";
 import { useNavigate, Link } from 'react-router-dom';
 import { useCookies } from 'react-cookie';
 
@@ -8,8 +9,15 @@ const Login = ({manager, setManager}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [cookies, setCookie] = useCookies();
+  const [cookies, setCookie, removeCookie] = useCookies(['userId']);
+  const user = cookies.userId;
   const navigate = useNavigate();
+
+  const fetchManager = async (user) => {
+    const docRef = doc(db, 'Managers', user);
+    const docSnapshot = await getDoc(docRef);
+    setManager({ ...docSnapshot.data(), id: docSnapshot.id });
+  };
 
   const login = (e) => {
     e.preventDefault();
@@ -17,6 +25,7 @@ const Login = ({manager, setManager}) => {
       .then((userCredential) => {
         const user = userCredential.user;
         setCookie('userId', user.uid, { path: '/' });
+        fetchManager(user.uid);
         navigate("/big-board");
       })
       .catch((error) => {

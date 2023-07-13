@@ -32,7 +32,7 @@ const App = () => {
     createRoutesFromElements (
       <Route path="/" element={<Layout setManager={setManager} manager={manager} />}>
         <Route index element={<Login manager={manager} setManager={setManager} />} errorElement={<NotFound />} />
-        <Route path="/big-board" element={<DraftBoard currentPick={currentPick} manager={manager} />} errorElement={<NotFound />} />
+        <Route path="/big-board" element={<DraftBoard currentPick={currentPick} manager={manager} setManager={setManager} />} errorElement={<NotFound />} />
         <Route path="/available" element={<AvailablePlayers manager={manager} currentPick={currentPick} setCurrentPick={setCurrentPick} />}  errorElement={<NotFound />} />
         <Route path="/teams/:id" element={<Team manager={manager} />} errorElement={<NotFound />} />
         <Route path="add-players" element={<AddPlayers />} errorElement={<NotFound />} />

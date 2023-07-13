@@ -1,15 +1,20 @@
 import React from "react";
 
 import {db} from "../core/firebase-config";
-import {collection, getDocs, query, where, orderBy, limit, startAfter, doc, updateDoc} from "firebase/firestore";
+import {collection, query, where, doc, updateDoc} from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 
 import PlayerCard from "../components/PlayerCard";
 import Heading from "../components/Heading";
-import Search from "../components/Search";
 import Button from "../components/Button";
 import PlayerModal from "../components/PlayerModal";
+
+import algoliasearch from 'algoliasearch/lite';
+import { InstantSearch, SearchBox, Pagination, Configure, useHits, RefinementList, ToggleRefinement } from 'react-instantsearch-hooks-web';
+
+
+const searchClient = algoliasearch('E0YB66F8UT', '49291fa6d4341fea8e9191cd0856c567');
 
 const AvailablePlayers = ({manager, currentPick}) => {
 
@@ -21,10 +26,6 @@ const AvailablePlayers = ({manager, currentPick}) => {
   const handleClick = () => {
     setActive(!isActive);
   }
-
-  const handleModalClick = (id) => {
-    setVisibleModal(id);
-  };
 
   const closeModal = () => {
     setVisibleModal(null);
@@ -59,117 +60,111 @@ const AvailablePlayers = ({manager, currentPick}) => {
     navigate(0);
   }
 
-
-  const [players, setPlayers] = useState([]);
-  const [selectedOption, setSelectedOption] = useState(0);
-  const [selectedPositionOption, setSelectedPositionOption] = useState(0);
-  const [lastPlayer, setLastPlayer] = useState('');
-
-  const handleDropdownChange = (event) => {
-    setSelectedOption(parseInt(event.target.value));
+  const handleModalClick = (objectID) => {
+    setVisibleModal(objectID);
   };
 
-  const handlePositionDropdownChange = (event) => {
-    setSelectedPositionOption(parseInt(event.target.value));
+
+  const CustomHits = () => {
+    const { hits } = useHits();
+    return (
+      <div className="py-12 px-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 x xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+      {hits.map(hit => (
+          <div key={hit.objectID}>
+            <PlayerCard key={hit.objectID} firstName={hit.first_name} lastName={hit.web_name} image={hit.code} logo={hit.team} position={positions[hit.element_type-1]} onclick={() => handleModalClick(hit.objectID)} /> 
+  
+            <div className={visibleModal === hit.objectID ? "fixed top-0 right-0 left-0 bottom-0 bg-black/50 z-40 flex items-center justify-center transition-transform scale-100" : "scale-95 hidden"}>
+            <PlayerModal key={hit.objectID} firstName={hit.first_name} lastName={hit.second_name} image={hit.code} teamName={hit.team} position={positions[hit.element_type-1]} goBack={closeModal} handlePlayerSelected={() => handlePlayerSelected(hit)} />
+            </div>    
+          </div>
+      ))}
+    </div>
+    ) 
   };
-
-  const sortBy = query(availablePlayers, orderBy("team"), orderBy("element_type"), limit(3));
-  const playersByTeam = query(availablePlayers, where("team", "==", selectedOption), orderBy("element_type"), limit(3));
-  const playersByPosition = query(availablePlayers, where("element_type", "==", selectedPositionOption), orderBy("team"), limit(3));
-
-
-  const getPlayers = async () => {
-    const data = await getDocs(sortBy);
-    const filterData = await getDocs(playersByTeam);
-    const filterPositionData = await getDocs(playersByPosition);
-
-    if (selectedOption) {
-      setPlayers(filterData.docs.map((doc) => ({...doc.data(), id: doc.id})));
-      setLastPlayer(filterData.docs[filterData.docs.length-1]);
-    } else if (selectedPositionOption) {
-      setPlayers(filterPositionData.docs.map((doc) => ({...doc.data(), id: doc.id})));
-      setLastPlayer(filterPositionData.docs[filterPositionData.docs.length-1]);
-    } else {
-      setPlayers(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
-      setLastPlayer(data.docs[data.docs.length-1]);
-    }
-  }
-
-  useEffect(()=> {
-    getPlayers();
-  }, [selectedOption, selectedPositionOption])
-
-  const getMorePlayers = async () => {
-
-    const sortBy = query(availablePlayers, orderBy("team"), orderBy("element_type"), startAfter(lastPlayer), limit(3));
-    const playersByTeam = query(availablePlayers, where("team", "==", selectedOption), orderBy("element_type"), startAfter(lastPlayer), limit(3));
-    const playersByPosition = query(availablePlayers, where("element_type", "==", selectedPositionOption), orderBy("team"), startAfter(lastPlayer), limit(3));
-
-    const data = await getDocs(sortBy);
-    const filterData = await getDocs(playersByTeam);
-    const filterPositionData = await getDocs(playersByPosition);
-
-    if (selectedOption) {
-      const newPlayers = filterData.docs.map((doc) => ({...doc.data(), id: doc.id}))
-      setPlayers((players) => [...players, ...newPlayers]);
-      setLastPlayer(filterData.docs[filterData.docs.length-1]);
-    } else if (selectedPositionOption) {
-      const newPlayers = filterPositionData.docs.map((doc) => ({...doc.data(), id: doc.id}))
-      setPlayers((players) => [...players, ...newPlayers]);
-      setLastPlayer(filterPositionData.docs[filterPositionData.docs.length-1]);
-    } else {
-      const newPlayers = data.docs.map((doc) => ({...doc.data(), id: doc.id}))
-      setPlayers((players) => [...players, ...newPlayers]);
-      setLastPlayer(data.docs[data.docs.length-1]);
-    }
-  }
-
-  const handleMorePlayers = () => {
-    getMorePlayers();
-  }
 
   const teams = ["Arsenal", "Aston Villa", "Bournemouth", "Brentford", "Brighton", "Burnley", "Chelsea", "Crystal Palace", "Everton", "Fulham", "Liverpool", "Luton", "Man City", "Man Utd", "Newcastle Utd", "Notts Forrest", "Sheff Utd", "Spurs", "West Ham", "Wolves"]
 
+  const transformTeamItems = (items) => {
+    return items.map((item, index) => {
+      return {
+        ...item,
+        label: teams[index],
+      };
+    });
+  };
+
   const positions = ["GK", "DEF", "MID", "ATT"];
 
+  const transformElementTypeItems = (items) => {
+    return items.map((item, index) => {
+      return {
+        ...item,
+        label: positions[index],
+      };
+    });
+  };
+
   return ( 
+    <InstantSearch 
+      searchClient={searchClient} 
+      indexName='players'
+      initialUiState={{
+        indexName: {
+          refinementList: {
+            selected: ['false']
+          }
+        },
+      }}>
+    <Configure hitsPerPage={20} />
     <div className="relative">
       <div className="flex justify-between items-center flex-col md:flex-row">
         <Heading text="Available Players" />
+        <Pagination />
         <div className="flex items-center justify-center">
           <div className="pr-2 relative">
             <Button text="Filters" onclick={handleClick} />
             <div className={`${isActive ? "hidden" : ""} z-10 min-w-[250px] absolute mt-4 w-full bg-gradient-to-r from-gray-900 to-gray-700 p-4`}>
               <h3 className="text-white font-bold">Filters</h3>
               <div className="p-2">
+              <h4 className="text-white font-bold text-sm pb-2 pt-4">Selected</h4>
+                <ToggleRefinement 
+                  attribute="selected"
+                  sortBy={["team:asc", "element_type:asc"]} 
+                  classNames={{
+                    labelText: "text-white"
+                  }} />
                 <h4 className="text-white font-bold text-sm pb-2 pt-4">Teams</h4>
-                <select className="p-2 min-w-full bg-white/95" value={selectedOption} onChange={handleDropdownChange}>
-                  <option value="">All Teams</option>
-                  {teams.map((team, index) => {
-                    return (
-                      <option key={team} value={index+1}>{team}</option>
-                    )
-                  })}
-                </select>
+                <RefinementList 
+                  attribute="team"
+                  limit={5}
+                  showMore={true}
+                  transformItems={transformTeamItems}
+                  sortBy={["team:asc", "element_type:asc"]} 
+                  classNames={{
+                    labelText: "text-white",
+                    showMore: "h-[36px] rounded-none  hover:bg-gradient-to-r hover:from-slate-700 hover:to-slate-900 hover:text-white transition-all"
+                  }} />
 
                 <h4 className="text-white font-bold text-sm pb-2 pt-4">Positions</h4>
-                <select className="p-2 min-w-full bg-white/95" value={selectedPositionOption} onChange={handlePositionDropdownChange}>
-                  <option value="">All Positions</option>
-                  {positions.map((position, index) => {
-                    return (
-                      <option key={position} value={index+1}>{position}</option>
-                    )
-                  })}
-                </select>
+                <RefinementList 
+                  attribute="element_type"
+                  transformItems={transformElementTypeItems}
+                  sortBy={["element_type:asc", "team:asc"]}
+                  classNames={{
+                    labelText: "text-white"
+                  }} />
               </div>
             </div>
           </div>
-          <Search placeholder="Quick search for a player..." />
+          <div className='search'>
+            {/* <input type='text' placeholder='Search' /> */}
+            <SearchBox />
+          </div>
         </div>
       </div>
 
-      <div className="py-12 px-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 x xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-            {players.length === 0 ? (
+      <div>
+            {/* {players.length === 0 ? (
               <div className="col-span-6 flex items-center justify-center min-h-[calc(100vh-293px)]">
                 <p className="text-white">No players available for this search term - Try again.</p>
               </div>
@@ -186,13 +181,23 @@ const AvailablePlayers = ({manager, currentPick}) => {
                   )
                 })}
               </>
-            )}
+            )} */}
+
+          <CustomHits />
+        
       </div>
-      <div className="pt-8 flex items-center justify-center">
+      {/* <div className="pt-8 flex items-center justify-center">
         <Button text="Load More Players" onclick={handleMorePlayers} />
-      </div>
+      </div> */}
     </div>
+    <div className="flex items-center justify-center">
+    <Pagination />
+    </div>
+    </InstantSearch>  
    );
 }
  
 export default AvailablePlayers;
+
+
+
